@@ -1,0 +1,11 @@
+streamlit
+pandas
+numpy
+langchain
+langchain-ollama
+ollama
+datasets
+ragas
+scikit-learn
+sqlalchemy
+tqdm

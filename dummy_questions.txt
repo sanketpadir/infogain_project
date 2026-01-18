@@ -1,0 +1,9 @@
+Demo Questions
+
+1. max BMI
+2. max age
+3. Which patients are above 60 years and diagnosed with Chronic kidney disease from dataset1
+4. highest alcohol_consumption_per_day from dataset1?
+5. give me Patient_Number which has Sex is 1 and Chronic_kidney_disease is 0 from dataset1?
+6. which Patient_Number has maximum Age and BMI from dataset1?
+7. count all rows from dataset2?

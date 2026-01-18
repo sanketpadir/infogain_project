@@ -1,0 +1,233 @@
+1. SQLite Basics
+
+SQLite is a lightweight, file-based database.
+
+It’s different from MySQL/PostgreSQL because it doesn’t require a separate server.
+
+You can create databases in-memory (:memory:) or as a file on disk.
+
+### Thread Safety
+
+Normally, SQLite connections are not safe to share across threads.
+
+If two threads try to use the same connection at the same time, it can cause errors or data corruption.
+
+check_same_thread=False means:
+
+The connection can be shared across multiple threads.
+
+You can safely call conn from different parts of your app, e.g., Streamlit callbacks or background threads.
+
+### Why Thread-Safe Matters in Your App
+
+Streamlit runs multiple threads for UI and callbacks.
+
+Without check_same_thread=False, if your app tries to run run_sql(conn, sql) from a different thread than the one that created conn, you would get:
+
+In short: Thread-safe SQLite lets your Streamlit app safely use the same in-memory database across multiple user interactions or threads.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+2. table name sanitization 
+
+Table name sanitization is the process of cleaning or modifying table names so that they are safe and valid for use in a database. In your backend code, this happens when you upload CSV files and automatically create tables in SQLite.
+
+### Why Sanitization is Needed
+
+Users can upload files with any name, e.g., 123-sales.csv, my file.csv, or data@2025.csv.
+
+SQL table names must follow rules:
+
+Can contain letters, numbers, and underscores (_).
+
+Cannot start with a number.
+
+Cannot contain spaces or special characters like @, #, -.
+
+Without sanitization, trying to use a table name like 123-sales in SQL would cause an error.
+
+✅ In short: Table name sanitization ensures uploaded CSV filenames become valid, safe table names for SQL operations in SQLite.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+3.Build schema block for prompt injection
+
+In short: The schema block communicates the database structure to the AI, allowing it to generate accurate SQL queries, even with dynamically uploaded CSV files.
+
+After loading CSVs, the system builds a human-readable schema block:
+This block is passed to the AI model to inform it about table names and available columns.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+4. SQL Sanitization
+
+SQL Sanitization is the process of cleaning or validating SQL queries before sending them to the database.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+5. Safe Column Qualification
+
+Safe Column Qualification is the process of automatically adding table names to column references in SQL queries to:
+
+Avoid ambiguity when multiple tables have columns with the same name.
+
+Ensure the SQL query executes correctly in a multi-table join scenario.
+
+Keep the query safe and accurate without manually specifying table names.
+
+
+#########################################################################################################################################
+
+
+STEPS OF PROJECT:
+
+Step-by-Step Working of Your Project
+Step 1: Data Loading
+
+The app allows dynamic CSV uploads or defaults to pre-existing datasets (dataset1.csv and dataset2.csv).
+
+Each uploaded CSV is loaded into an in-memory SQLite database.
+
+Thread-safe SQLite allows multiple queries without conflicts.
+
+Tables are named dynamically from filenames, sanitized for safety.
+
+Column names for each table are stored in TABLE_COLUMNS, and table order in TABLE_ORDER.
+
+These are later used for schema-aware SQL generation and safe column qualification.
+
+Why: This makes your pipeline flexible and able to handle any CSV file.
+
+Step 2: Schema Block Generation
+
+After loading CSVs, the system builds a human-readable schema block:
+
+Example:
+
+Tables and columns available:
+- Dataset1(Patient_Number, Name, Age)
+- Dataset2(Patient_Number, Diagnosis, Date)
+
+
+This block is passed to the AI model to inform it about table names and available columns.
+
+Why: The LLM (Ollama Mistral) knows which tables and columns exist, making SQL generation more accurate and reducing errors.
+
+Step 3: User Inputs a Natural-Language Question
+
+Users type any question about their data:
+
+Example: "Which patients were diagnosed with thyroid disorders?"
+
+Users can also adjust temperature to control the AI’s creativity in SQL generation.
+
+Why: It allows natural-language interaction, making the tool user-friendly for non-technical users.
+
+Step 4: SQL Generation Using Ollama Mistral
+
+The AI receives:
+
+The user question
+
+The schema block
+
+The AI outputs raw SQL attempting to answer the query.
+Example output:
+
+SELECT Patient_Number, Name FROM Dataset1 JOIN Dataset2 ON Patient_Number = Patient_Number WHERE Diagnosis = 'Thyroid Disorder'
+
+
+Why: Automates SQL writing, so users don’t need to manually code queries.
+
+Step 5: Safe Column Qualification
+
+The system automatically prefixes columns with table names to prevent ambiguity.
+
+Example: Patient_Number → Dataset1.Patient_Number
+
+Handles string literals safely so text like 'Thyroid Disorder' is not modified.
+
+Why: Ensures the SQL runs without errors, especially for multi-table joins or overlapping column names.
+
+Step 6: SQL Sanitization
+
+Keeps only the first SQL statement in case the AI outputs multiple statements.
+
+Adds a LIMIT 200 if missing to prevent excessive data retrieval.
+
+Why: Ensures safe execution and prevents accidental large queries.
+
+Step 7: Execute SQL
+
+The sanitized and qualified SQL is executed on the SQLite database.
+
+Results are stored in a Pandas DataFrame.
+
+Why: Converts AI-generated SQL into actual data output.
+
+Step 8: Summarize Data
+
+Sample first 500 rows to avoid heavy summarization.
+
+Compute:
+
+Row count
+
+Sample preview (first 10 rows)
+
+Statistics (describe() for numeric and categorical columns)
+
+Why: Provides the LLM with a summary of the results, enabling better natural-language answers.
+
+Step 9: Generate Natural-Language Answer
+
+The summary of SQL output and the user question are passed to Ollama Mistral.
+
+The AI outputs a clear, 4–6 sentence explanation, e.g.:
+
+"There are 23 patients diagnosed with Thyroid Disorder. The patients’ IDs are 101, 102, 103… The data comes from Dataset1 and Dataset2. No additional medical advice is provided."
+
+Why: Converts raw SQL results into human-readable insights.
+
+Step 10: Evaluation of Results
+
+The system calculates evaluation metrics:
+
+Faithfulness: Is the answer supported by the data?
+
+Relevancy Accuracy: Does the answer address the user question?
+
+Context Accuracy: Does it stay consistent with the summarized data?
+
+These metrics help debug the LLM’s output quality.
+
+Why: Ensures trustworthy and reliable answers.
+
+Step 11: Display Results in Streamlit UI
+
+Shows:
+
+Generated SQL (expandable)
+
+Number of rows returned
+
+Sample rows (dataframe)
+
+Summary of data
+
+Natural-language answer
+
+Evaluation metrics (JSON)
+
+Supports dynamic user interaction and quick iteration with different questions.
+
+Step 12: Handling Multiple Datasets Dynamically
+
+The system can accept any uploaded CSV.
+
+Table names and columns are automatically detected, so the same pipeline works without manual code changes.
+
+AI-generated SQL will always reference qualified columns to avoid ambiguity.
+
+
+
